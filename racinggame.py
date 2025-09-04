@@ -24,7 +24,7 @@ paused = False  # New pause state variable
 position = [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
 orientation = [0.0, 0.0]
 velocity = [0.0, 0.0]
-top_speed = 0.15
+top_speed = 0.3
 acceleration = 0.005
 handling = 0.06
 BOOSTED_TOP_SPEED = top_speed * 2.0
@@ -63,10 +63,11 @@ def generate_track():
 def generate_objects():
     num_obs = 50
     num_boost = 10
+    num_speed_down = 5  # Number of speed-down objects
     objects.clear()
     N = len(SPLINE_POINTS)
-    picks = random.sample(range(10, N - 10), num_obs + num_boost)
-    kinds = ['obs'] * num_obs + ['boost'] * num_boost
+    picks = random.sample(range(10, N - 10), num_obs + num_boost + num_speed_down)
+    kinds = ['obs'] * num_obs + ['boost'] * num_boost + ['speed_down'] * num_speed_down
     random.shuffle(kinds)
     for idx, kind in zip(picks, kinds):
         x, y, z = SPLINE_POINTS[idx]
@@ -142,8 +143,11 @@ def draw_objects():
             glColor3f(0.5, 0.5, 0.5)
             glScalef(0.25, 0.25, 0.25)
             draw_cube()
-        else:
+        elif obj['type'] == 'boost':
             glColor3f(1, 1, 0)
+            glutSolidSphere(0.25, 16, 16)
+        elif obj['type'] == 'speed_down':
+            glColor3f(0, 1, 0)  # Green for speed-down
             glutSolidSphere(0.25, 16, 16)
         glPopMatrix()
 
@@ -280,6 +284,7 @@ def check_collisions(player_id):
     car_min = (cx - 0.1, cy - 0.1, cz - 0.1)
     car_max = (cx + 0.1, cy + 0.1, cz + 0.1)
     t = glutGet(GLUT_ELAPSED_TIME)
+    opponent_id = 1 if player_id == 0 else 0
     for obj in objects:
         if not obj['active']:
             continue
@@ -289,9 +294,11 @@ def check_collisions(player_id):
         if aabb_collide(car_min, car_max, o_min, o_max):
             if obj['type'] == 'obs':
                 velocity[player_id] = 0.0
-            else:
+            elif obj['type'] == 'boost':
                 max_speed[player_id] = BOOSTED_TOP_SPEED
                 boost_end_time[player_id] = t + 2000
+            elif obj['type'] == 'speed_down':
+                velocity[opponent_id] *= 0.1  # Halve opponent's velocity
             obj['active'] = False
     if boost_end_time[player_id] and t > boost_end_time[player_id]:
         max_speed[player_id] = top_speed
