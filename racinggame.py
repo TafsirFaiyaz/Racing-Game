@@ -6,11 +6,20 @@ import random
 import time
 
 # --- GLOBAL STATE ---
+from OpenGL.GL import *
+from OpenGL.GLU import *
+from OpenGL.GLUT import *
+import math
+import random
+import time
+
+# --- GLOBAL STATE ---
 TRACK_WIDTH = 10.0
 CONTROL_POINTS = []
 SPLINE_POINTS = []
 objects = []
 particles = []
+trees = []  # List to hold tree positions
 game_finished = [False, False]
 current_level = 0
 countdown_state = None  # None, 3, 2, 1, 'GO!', 'racing'
@@ -62,6 +71,16 @@ def generate_track():
         y = 0.0
         SPLINE_POINTS.append((x, y, z))
 
+def generate_trees():
+    trees.clear()
+    num_trees_per_side = 30  # Number of trees on each side
+    for _ in range(num_trees_per_side):
+        z = random.uniform(0, 150)
+        x_left = -6.0 + random.uniform(-1.0, 1.0)
+        x_right = 6.0 + random.uniform(-1.0, 1.0)
+        trees.append((x_left, 0.0, z))
+        trees.append((x_right, 0.0, z))
+
 # --- OBJECT PLACEMENT ---
 def generate_objects():
     num_obs = 50
@@ -80,21 +99,39 @@ def generate_objects():
 
 # --- DRAW ROUTINES ---
 def draw_track():
+    # Draw the asphalt track
     glBegin(GL_QUADS)
+    glColor3f(0.2, 0.2, 0.2)  # Dark gray for asphalt
     for i in range(len(SPLINE_POINTS) - 1):
         x1, y1, z1 = SPLINE_POINTS[i]
         x2, y2, z2 = SPLINE_POINTS[i + 1]
-        nx, nz = -1, 0
+        nx, nz = -1, 0  # Normal for flat track
         w = TRACK_WIDTH / 2
-        if (i // 5) % 2 == 0:
-            glColor3f(0.8, 0.8, 0.8)
-        else:
-            glColor3f(0.5, 0.5, 0.5)
         glVertex3f(x1 + nx * w, y1, z1 + nz * w)
         glVertex3f(x1 - nx * w, y1, z1 - nz * w)
         glVertex3f(x2 - nx * w, y2, z2 - nz * w)
         glVertex3f(x2 + nx * w, y2, z2 + nz * w)
     glEnd()
+
+    # Draw white side lines and dashed center line
+    glColor3f(1.0, 1.0, 1.0)  # White lines
+    glLineWidth(2.0)
+    glBegin(GL_LINES)
+    for i in range(len(SPLINE_POINTS) - 1):
+        z1 = SPLINE_POINTS[i][2]
+        z2 = SPLINE_POINTS[i + 1][2]
+        # Left side line
+        glVertex3f(-4.8, 0.01, z1)
+        glVertex3f(-4.8, 0.01, z2)
+        # Right side line
+        glVertex3f(4.8, 0.01, z1)
+        glVertex3f(4.8, 0.01, z2)
+        # Dashed center line
+        if (i % 10) < 5:  # Make it dashed
+            glVertex3f(0.0, 0.01, z1)
+            glVertex3f(0.0, 0.01, z2)
+    glEnd()
+    glLineWidth(1.0)
 
 def draw_cube():
     glBegin(GL_QUADS)
@@ -158,6 +195,42 @@ def draw_objects():
             glEnd()
         glPopMatrix()
 
+def draw_tree(x, y, z):
+    glPushMatrix()
+    glTranslatef(x, y, z)
+    # Trunk
+    glColor3f(0.5, 0.35, 0.05)  # Brown
+    glPushMatrix()
+    glTranslatef(0, 0.5, 0)
+    glScalef(0.2, 1.0, 0.2)
+    glutSolidCube(1.0)
+    glPopMatrix()
+    # Foliage - using triangles to form a simple pyramid
+    glColor3f(0.0, 0.6, 0.0)  # Dark green
+    glBegin(GL_TRIANGLES)
+    # Front
+    glVertex3f(-1.0, 0.0, 0.0)
+    glVertex3f(1.0, 0.0, 0.0)
+    glVertex3f(0.0, 3.0, 0.0)
+    # Back
+    glVertex3f(-1.0, 0.0, 0.0)
+    glVertex3f(1.0, 0.0, 0.0)
+    glVertex3f(0.0, 3.0, 0.0)
+    # Left
+    glVertex3f(0.0, 0.0, -1.0)
+    glVertex3f(0.0, 0.0, 1.0)
+    glVertex3f(0.0, 3.0, 0.0)
+    # Right
+    glVertex3f(0.0, 0.0, -1.0)
+    glVertex3f(0.0, 0.0, 1.0)
+    glVertex3f(0.0, 3.0, 0.0)
+    glEnd()
+    glPopMatrix()
+
+def draw_trees():
+    for tree_pos in trees:
+        draw_tree(*tree_pos)
+
 def draw_particles():
     if current_level == 1:
         glColor3f(0.5, 0.5, 1.0)
@@ -191,6 +264,34 @@ def draw_sun():
         glVertex3f(x, y, 0)
     glEnd()
     glPopMatrix()
+
+def draw_sky():
+    # Simple sky gradient using a large quad
+    glDisable(GL_DEPTH_TEST)
+    glBegin(GL_QUADS)
+    if current_level == 0:  # Sunny
+        glColor3f(0.529, 0.808, 0.922)  # Light blue at top
+        glVertex3f(-100, 100, -100)
+        glVertex3f(100, 100, -100)
+        glColor3f(0.678, 0.847, 0.902)  # Lighter blue at bottom
+        glVertex3f(100, 0, -100)
+        glVertex3f(-100, 0, -100)
+    elif current_level == 1:  # Rainy
+        glColor3f(0.4, 0.4, 0.4)  # Dark gray at top
+        glVertex3f(-100, 100, -100)
+        glVertex3f(100, 100, -100)
+        glColor3f(0.6, 0.6, 0.6)  # Lighter gray at bottom
+        glVertex3f(100, 0, -100)
+        glVertex3f(-100, 0, -100)
+    elif current_level == 2:  # Snowy
+        glColor3f(0.7, 0.7, 0.7)  # Gray at top
+        glVertex3f(-100, 100, -100)
+        glVertex3f(100, 100, -100)
+        glColor3f(0.9, 0.9, 0.9)  # Almost white at bottom
+        glVertex3f(100, 0, -100)
+        glVertex3f(-100, 0, -100)
+    glEnd()
+    glEnable(GL_DEPTH_TEST)
 
 def draw_text(x, y, text):
     glMatrixMode(GL_PROJECTION)
@@ -280,6 +381,7 @@ def show_overall_winner():
     glMatrixMode(GL_PROJECTION)
     glPopMatrix()
     glMatrixMode(GL_MODELVIEW)
+
 
 # --- PHYSICS & COLLISION ---
 def aabb_collide(min1, max1, min2, max2):
@@ -417,6 +519,7 @@ def next_level():
     level_completed = False
     set_level_properties(current_level)
     generate_objects()
+    generate_trees() 
     countdown_state = 3
     countdown_start_time = time.time()
 
@@ -437,11 +540,11 @@ def setup_viewport(player_id, width, height):
 def draw_player_view(player_id, width, height):
     setup_viewport(player_id, width, height)
     if current_level == 0:
-        glClearColor(0.5, 0.7, 1.0, 1.0)
+        glClearColor(0.529, 0.808, 0.922, 1.0) 
     elif current_level == 1:
-        glClearColor(0.3, 0.3, 0.3, 1.0)
+        glClearColor(0.5, 0.5, 0.5, 1.0) 
     elif current_level == 2:
-        glClearColor(0.6, 0.6, 0.7, 1.0)
+        glClearColor(0.8, 0.8, 0.8, 1.0)
     if player_id == 0:
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     else:
@@ -466,6 +569,8 @@ def draw_player_view(player_id, width, height):
         center_y = py + 0.5
         center_z = pz + 5.0
         gluLookAt(eye_x, eye_y, eye_z, center_x, center_y, center_z, 0, 1, 0)
+        
+    draw_sky()
     glColor3f(0.0, 0.5, 0.0)
     glBegin(GL_QUADS)
     glVertex3f(-10, -0.01, 0)
@@ -474,6 +579,7 @@ def draw_player_view(player_id, width, height):
     glVertex3f(-10, -0.01, 150)
     glEnd()
     draw_track()
+    draw_trees()
     draw_particles()
     draw_objects()
     for i in range(2):
@@ -628,6 +734,20 @@ def init():
     gluPerspective(45, 1500 / 900, 0.1, 500)
     glMatrixMode(GL_MODELVIEW)
 
+def init_game():
+    global current_level, countdown_state, countdown_start_time
+    current_level = 0
+    set_level_properties(current_level)
+    generate_control_points()
+    generate_track()
+    generate_objects()
+    generate_trees()  # Ensure trees are generated at game start
+    countdown_state = 3
+    countdown_start_time = time.time()
+    countdown_state = 3
+    countdown_start_time = time.time()
+    set_level_properties(current_level)
+
 def init_players():
     global position
     position[0][0] = -TRACK_WIDTH / 4
@@ -638,13 +758,8 @@ glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH)
 glutInitWindowSize(1920, 1080)
 glutCreateWindow(b"3D Car Racing Game")
 init()
-generate_control_points()
-generate_track()
-generate_objects()
+init_game()
 init_players()
-set_level_properties(current_level)
-countdown_state = 3
-countdown_start_time = time.time()
 glutDisplayFunc(display)
 glutReshapeFunc(reshape)
 glutIdleFunc(idle)
