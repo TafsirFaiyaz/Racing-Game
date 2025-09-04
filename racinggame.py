@@ -18,6 +18,7 @@ countdown_start_time = 0
 round_winners = []  # Track winners of each round
 level_completed = False
 level_complete_time = 0
+paused = False  # New pause state variable
 
 # Car state for two players
 position = [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
@@ -231,6 +232,25 @@ def draw_countdown():
         glPopMatrix()
         glMatrixMode(GL_MODELVIEW)
 
+def draw_pause_overlay():
+    if paused:
+        glMatrixMode(GL_PROJECTION)
+        glPushMatrix()
+        glLoadIdentity()
+        glOrtho(0, 800, 0, 600, -1, 1)
+        glMatrixMode(GL_MODELVIEW)
+        glPushMatrix()
+        glLoadIdentity()
+        glColor3f(1, 1, 1)
+        text = "PAUSED"
+        glRasterPos2f(400 - len(text) * 14 / 2, 300)
+        for char in text:
+            glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, ord(char))
+        glPopMatrix()
+        glMatrixMode(GL_PROJECTION)
+        glPopMatrix()
+        glMatrixMode(GL_MODELVIEW)
+
 def show_overall_winner():
     p1_wins = round_winners.count(0)
     p2_wins = round_winners.count(1)
@@ -292,7 +312,7 @@ def check_car_collision():
 
 def update_physics():
     global position, velocity, game_finished, level_completed, level_complete_time, current_level, round_winners, countdown_state
-    if countdown_state != 'racing':
+    if paused or countdown_state != 'racing':  # Skip physics update if paused
         return
     check_car_collision()
     for player_id in range(2):
@@ -484,6 +504,7 @@ def draw_player_view(player_id, width, height):
         glVertex2f(width // 2, height)
         glEnd()
         draw_countdown()
+        draw_pause_overlay()  # Add pause overlay
         if all(game_finished) and current_level < 2:
             glColor3f(1, 1, 1)
             progression_text = "Press Enter for Next Level"
@@ -535,7 +556,7 @@ def special_up(k, x, y):
         keys['p2_right'] = False
 
 def keyboard_down(k, x, y):
-    global camera_mode
+    global camera_mode, paused
     if k == b'c' or k == b'C':
         camera_mode[0] = (camera_mode[0] + 1) % 2
     elif k == b'v' or k == b'V':
@@ -550,6 +571,8 @@ def keyboard_down(k, x, y):
         keys['enter'] = True
     elif k == b'r' or k == b'R':
         keys['restart'] = True
+    elif k == b'p' or k == b'P':  # Toggle pause
+        paused = not paused
 
 def keyboard_up(k, x, y):
     if k == b'w' or k == b'W':
