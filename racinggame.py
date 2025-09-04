@@ -18,7 +18,8 @@ countdown_start_time = 0
 round_winners = []  # Track winners of each round
 level_completed = False
 level_complete_time = 0
-paused = False  # New pause state variable
+paused = False  # Pause state variable
+health = [5.0, 5.0]  # Health for each player (Player 1, Player 2)
 
 # Car state for two players
 position = [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
@@ -65,8 +66,8 @@ def generate_track():
 def generate_objects():
     num_obs = 50
     num_boost = 10
-    num_speed_down = 5  # Number of speed-down objects
-    num_slippery = 15  # Number of slippery zones
+    num_speed_down = 5
+    num_slippery = 15
     objects.clear()
     N = len(SPLINE_POINTS)
     picks = random.sample(range(10, N - 10), num_obs + num_boost + num_speed_down + num_slippery)
@@ -106,22 +107,17 @@ def draw_cube():
     glEnd()
 
 def draw_car(color):
-    # Car Body
     glColor3f(*color)
     glPushMatrix()
     glScalef(1.0, 0.3, 0.5)
     glutSolidCube(1.0)
     glPopMatrix()
-
-    # Car Window
-    glColor3f(0.7, 0.7, 1.0)  # Light blue
+    glColor3f(0.7, 0.7, 1.0)
     glPushMatrix()
     glTranslatef(0.0, 0.35, 0.0)
     glScalef(0.5, 0.25, 0.3)
     glutSolidCube(1.0)
     glPopMatrix()
-
-    # Wheels
     glColor3f(0.0, 0.0, 0.0)
     wheel_radius = 0.2
     wheel_width = 0.1
@@ -134,14 +130,14 @@ def draw_car(color):
             glRotatef(90, 0, 1, 0)
             glutSolidTorus(wheel_width / 2, wheel_radius, 20, 40)
             glPopMatrix()
-            
+
 def draw_objects():
     for obj in objects:
         if not obj['active']:
             continue
         x, y, z = obj['pos']
         glPushMatrix()
-        glTranslatef(x, y + 0.01, z)  # Slightly above ground
+        glTranslatef(x, y + 0.01, z)
         if obj['type'] == 'obs':
             glColor3f(0.5, 0.5, 0.5)
             glScalef(0.25, 0.25, 0.25)
@@ -150,10 +146,10 @@ def draw_objects():
             glColor3f(1, 1, 0)
             glutSolidSphere(0.25, 16, 16)
         elif obj['type'] == 'speed_down':
-            glColor3f(0, 1, 0)  # Green for speed-down
+            glColor3f(0, 1, 0)
             glutSolidSphere(0.25, 16, 16)
         elif obj['type'] == 'slippery':
-            glColor3f(0.6, 0.4, 0)  # Cyan for slippery zone (ice/oil)
+            glColor3f(0.6, 0.4, 0)
             glBegin(GL_QUADS)
             glVertex3f(-0.5, 0, -0.5)
             glVertex3f(0.5, 0, -0.5)
@@ -290,7 +286,7 @@ def aabb_collide(min1, max1, min2, max2):
     return all(min1[i] < max2[i] and max1[i] > min2[i] for i in range(3))
 
 def check_collisions(player_id):
-    global velocity, max_speed, boost_end_time, handling
+    global velocity, max_speed, boost_end_time, handling, health
     cx, cy, cz = position[player_id]
     car_min = (cx - 0.1, cy - 0.1, cz - 0.1)
     car_max = (cx + 0.1, cy + 0.1, cz + 0.1)
@@ -301,25 +297,31 @@ def check_collisions(player_id):
             continue
         x, y, z = obj['pos']
         if obj['type'] == 'slippery':
-            o_min = (x - 0.5, y - 0.1, z - 0.5)  # Larger zone for slippery
+            o_min = (x - 0.5, y - 0.1, z - 0.5)
             o_max = (x + 0.5, y + 0.1, z + 0.5)
         else:
             o_min = (x - 0.125, y - 0.125, z - 0.125)
             o_max = (x + 0.125, y + 0.125, z + 0.125)
         if aabb_collide(car_min, car_max, o_min, o_max):
             if obj['type'] == 'obs':
-                velocity[player_id] = 0.0
+                health[player_id] -= 1.0  # Reduce health by 1
+                max_speed[player_id] *= 0.9 
+                velocity[player_id] = 0# Reduce top speed by 10% permanently for the round
+                if health[player_id] <= 0:
+                    health[player_id] = 0
+                    max_speed[player_id] = 0.1
+                    
             elif obj['type'] == 'boost':
                 max_speed[player_id] = BOOSTED_TOP_SPEED
                 boost_end_time[player_id] = t + 2000
             elif obj['type'] == 'speed_down':
-                velocity[opponent_id] *= 0.2  # Halve opponent's velocity
+                velocity[opponent_id] *= 0.2
             elif obj['type'] == 'slippery':
-                handling[player_id] = base_handling * 0.3  # Reduce handling to 30% for sliding effect
-                slippery_end_time[player_id] = t + 2000  # 2 seconds
+                handling[player_id] = base_handling * 0.3
+                slippery_end_time[player_id] = t + 2000
             obj['active'] = False
     if boost_end_time[player_id] and t > boost_end_time[player_id]:
-        max_speed[player_id] = top_speed
+        max_speed[player_id] = top_speed if health[player_id] > 0 else max_speed[player_id]
         boost_end_time[player_id] = 0
     if slippery_end_time[player_id] and t > slippery_end_time[player_id]:
         handling[player_id] = base_handling
@@ -340,7 +342,7 @@ def check_car_collision():
 
 def update_physics():
     global position, velocity, game_finished, level_completed, level_complete_time, current_level, round_winners, countdown_state
-    if paused or countdown_state != 'racing':  # Skip physics update if paused
+    if paused or countdown_state != 'racing':
         return
     check_car_collision()
     for player_id in range(2):
@@ -350,7 +352,7 @@ def update_physics():
         accel_key = 'p1_accel' if player_id == 0 else 'p2_accel'
         left_key = 'p1_left' if player_id == 0 else 'p2_left'
         right_key = 'p1_right' if player_id == 0 else 'p2_right'
-        if keys[accel_key]:
+        if keys[accel_key]:  # Only accelerate if health > 0
             velocity[player_id] += acceleration
         else:
             velocity[player_id] -= acceleration / 2 if velocity[player_id] > 0 else 0
@@ -406,7 +408,7 @@ def set_level_properties(level):
     handling = [base_handling, base_handling]
 
 def next_level():
-    global current_level, game_finished, position, velocity, max_speed, boost_end_time, level_completed, countdown_state, countdown_start_time
+    global current_level, game_finished, position, velocity, max_speed, boost_end_time, level_completed, countdown_state, countdown_start_time, health
     current_level += 1
     game_finished = [False, False]
     position = [[-TRACK_WIDTH / 4, 0.0, 0.0], [TRACK_WIDTH / 4, 0.0, 0.0]]
@@ -414,6 +416,7 @@ def next_level():
     max_speed = [top_speed, top_speed]
     boost_end_time = [0, 0]
     slippery_end_time = [0, 0]
+    health = [5.0, 5.0]  # Reset health for both players
     level_completed = False
     set_level_properties(current_level)
     generate_objects()
@@ -421,9 +424,10 @@ def next_level():
     countdown_start_time = time.time()
 
 def restart_game():
-    global current_level, round_winners, countdown_state, countdown_start_time
+    global current_level, round_winners, countdown_state, countdown_start_time, health
     current_level = -1
     round_winners = []
+    health = [5.0, 5.0]  # Reset health when restarting
     next_level()
 
 # --- SPLIT SCREEN RENDERING ---
@@ -449,7 +453,7 @@ def draw_player_view(player_id, width, height):
     px, py, pz = position[player_id]
     cos_o = math.cos(orientation[player_id])
     sin_o = math.sin(orientation[player_id])
-    if camera_mode[player_id] == 0:  # First-person view
+    if camera_mode[player_id] == 0:
         eye_x = px + 0.3 * sin_o
         eye_y = py + 0.1
         eye_z = pz + 0.3 * cos_o
@@ -457,7 +461,7 @@ def draw_player_view(player_id, width, height):
         center_y = py + 0.1
         center_z = pz + 0.8 * cos_o
         gluLookAt(eye_x, eye_y, eye_z, center_x, center_y, center_z, 0, 1, 0)
-    else:  # Third-person view
+    else:
         eye_x = px - 4.0 * sin_o
         eye_y = py + 2.5
         eye_z = pz - 6.0 * cos_o
@@ -502,6 +506,10 @@ def draw_player_view(player_id, width, height):
     glRasterPos2f(x_pos, y_pos - 20)
     for char in speed_text:
         glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, ord(char))
+    health_text = f"Health: {int(health[player_id])}/5"  # Display health
+    glRasterPos2f(x_pos, y_pos - 60)
+    for char in health_text:
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, ord(char))
     level_names = ["Sunny", "Rainy", "Snowy"]
     level_text = f"Level: {current_level + 1} ({level_names[current_level]})"
     glRasterPos2f(x_pos, y_pos - 40)
@@ -534,7 +542,7 @@ def draw_player_view(player_id, width, height):
         glVertex2f(width // 2, height)
         glEnd()
         draw_countdown()
-        draw_pause_overlay()  # Add pause overlay
+        draw_pause_overlay()
         if all(game_finished) and current_level < 2:
             glColor3f(1, 1, 1)
             progression_text = "Press Enter for Next Level"
@@ -601,7 +609,7 @@ def keyboard_down(k, x, y):
         keys['enter'] = True
     elif k == b'r' or k == b'R':
         keys['restart'] = True
-    elif k == b'p' or k == b'P':  # Toggle pause
+    elif k == b'p' or k == b'P':
         paused = not paused
 
 def keyboard_up(k, x, y):
