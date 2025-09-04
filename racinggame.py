@@ -153,7 +153,7 @@ def draw_objects():
             glColor3f(0, 1, 0)  # Green for speed-down
             glutSolidSphere(0.25, 16, 16)
         elif obj['type'] == 'slippery':
-            glColor3f(0.0, 0.8, 1.0)  # Cyan for slippery zone (ice/oil)
+            glColor3f(0.6, 0.4, 0)  # Cyan for slippery zone (ice/oil)
             glBegin(GL_QUADS)
             glVertex3f(-0.5, 0, -0.5)
             glVertex3f(0.5, 0, -0.5)
@@ -313,10 +313,10 @@ def check_collisions(player_id):
                 max_speed[player_id] = BOOSTED_TOP_SPEED
                 boost_end_time[player_id] = t + 2000
             elif obj['type'] == 'speed_down':
-                velocity[opponent_id] *= 0.5  # Halve opponent's velocity
+                velocity[opponent_id] *= 0.2  # Halve opponent's velocity
             elif obj['type'] == 'slippery':
                 handling[player_id] = base_handling * 0.3  # Reduce handling to 30% for sliding effect
-                slippery_end_time[player_id] = t + 3000  # 3 seconds
+                slippery_end_time[player_id] = t + 2000  # 2 seconds
             obj['active'] = False
     if boost_end_time[player_id] and t > boost_end_time[player_id]:
         max_speed[player_id] = top_speed
