@@ -305,12 +305,9 @@ def check_collisions(player_id):
         if aabb_collide(car_min, car_max, o_min, o_max):
             if obj['type'] == 'obs':
                 health[player_id] -= 1.0  # Reduce health by 1
-                max_speed[player_id] *= 0.9 
-                velocity[player_id] = 0# Reduce top speed by 10% permanently for the round
+                max_speed[player_id] *= 0.9  # Reduce top speed by 10% permanently for the round
                 if health[player_id] <= 0:
-                    health[player_id] = 0
-                    max_speed[player_id] = 0.1
-                    
+                    velocity[player_id] = 0.0  # Stop car if health reaches 0
             elif obj['type'] == 'boost':
                 max_speed[player_id] = BOOSTED_TOP_SPEED
                 boost_end_time[player_id] = t + 2000
@@ -334,8 +331,8 @@ def check_car_collision():
     dz = p1_z - p2_z
     dist_squared = dx * dx + dz * dz
     if dist_squared < 0.04:
-        velocity[0] *= 0.5
-        velocity[1] *= 0.5
+        loser = random.choice([0, 1])
+        velocity[loser] = 0.0
         push_dir = 0.05 if dx < 0 else -0.05
         position[0][0] += push_dir
         position[1][0] -= push_dir
@@ -352,7 +349,7 @@ def update_physics():
         accel_key = 'p1_accel' if player_id == 0 else 'p2_accel'
         left_key = 'p1_left' if player_id == 0 else 'p2_left'
         right_key = 'p1_right' if player_id == 0 else 'p2_right'
-        if keys[accel_key]:  # Only accelerate if health > 0
+        if keys[accel_key] and health[player_id] > 0:  # Only accelerate if health > 0
             velocity[player_id] += acceleration
         else:
             velocity[player_id] -= acceleration / 2 if velocity[player_id] > 0 else 0
