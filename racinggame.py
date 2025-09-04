@@ -26,7 +26,9 @@ orientation = [0.0, 0.0]
 velocity = [0.0, 0.0]
 top_speed = 0.3
 acceleration = 0.005
-handling = 0.06
+base_handling = 0.06
+handling = [base_handling, base_handling]
+slippery_end_time = [0, 0]
 BOOSTED_TOP_SPEED = top_speed * 2.0
 max_speed = [top_speed, top_speed]
 boost_end_time = [0, 0]
@@ -64,10 +66,11 @@ def generate_objects():
     num_obs = 50
     num_boost = 10
     num_speed_down = 5  # Number of speed-down objects
+    num_slippery = 15  # Number of slippery zones
     objects.clear()
     N = len(SPLINE_POINTS)
-    picks = random.sample(range(10, N - 10), num_obs + num_boost + num_speed_down)
-    kinds = ['obs'] * num_obs + ['boost'] * num_boost + ['speed_down'] * num_speed_down
+    picks = random.sample(range(10, N - 10), num_obs + num_boost + num_speed_down + num_slippery)
+    kinds = ['obs'] * num_obs + ['boost'] * num_boost + ['speed_down'] * num_speed_down + ['slippery'] * num_slippery
     random.shuffle(kinds)
     for idx, kind in zip(picks, kinds):
         x, y, z = SPLINE_POINTS[idx]
@@ -131,14 +134,14 @@ def draw_car(color):
             glRotatef(90, 0, 1, 0)
             glutSolidTorus(wheel_width / 2, wheel_radius, 20, 40)
             glPopMatrix()
-
+            
 def draw_objects():
     for obj in objects:
         if not obj['active']:
             continue
         x, y, z = obj['pos']
         glPushMatrix()
-        glTranslatef(x, y + 0.125, z)
+        glTranslatef(x, y + 0.01, z)  # Slightly above ground
         if obj['type'] == 'obs':
             glColor3f(0.5, 0.5, 0.5)
             glScalef(0.25, 0.25, 0.25)
@@ -149,6 +152,14 @@ def draw_objects():
         elif obj['type'] == 'speed_down':
             glColor3f(0, 1, 0)  # Green for speed-down
             glutSolidSphere(0.25, 16, 16)
+        elif obj['type'] == 'slippery':
+            glColor3f(0.0, 0.8, 1.0)  # Cyan for slippery zone (ice/oil)
+            glBegin(GL_QUADS)
+            glVertex3f(-0.5, 0, -0.5)
+            glVertex3f(0.5, 0, -0.5)
+            glVertex3f(0.5, 0, 0.5)
+            glVertex3f(-0.5, 0, 0.5)
+            glEnd()
         glPopMatrix()
 
 def draw_particles():
@@ -279,7 +290,7 @@ def aabb_collide(min1, max1, min2, max2):
     return all(min1[i] < max2[i] and max1[i] > min2[i] for i in range(3))
 
 def check_collisions(player_id):
-    global velocity, max_speed, boost_end_time
+    global velocity, max_speed, boost_end_time, handling
     cx, cy, cz = position[player_id]
     car_min = (cx - 0.1, cy - 0.1, cz - 0.1)
     car_max = (cx + 0.1, cy + 0.1, cz + 0.1)
@@ -289,8 +300,12 @@ def check_collisions(player_id):
         if not obj['active']:
             continue
         x, y, z = obj['pos']
-        o_min = (x - 0.125, y - 0.125, z - 0.125)
-        o_max = (x + 0.125, y + 0.125, z + 0.125)
+        if obj['type'] == 'slippery':
+            o_min = (x - 0.5, y - 0.1, z - 0.5)  # Larger zone for slippery
+            o_max = (x + 0.5, y + 0.1, z + 0.5)
+        else:
+            o_min = (x - 0.125, y - 0.125, z - 0.125)
+            o_max = (x + 0.125, y + 0.125, z + 0.125)
         if aabb_collide(car_min, car_max, o_min, o_max):
             if obj['type'] == 'obs':
                 velocity[player_id] = 0.0
@@ -298,11 +313,17 @@ def check_collisions(player_id):
                 max_speed[player_id] = BOOSTED_TOP_SPEED
                 boost_end_time[player_id] = t + 2000
             elif obj['type'] == 'speed_down':
-                velocity[opponent_id] *= 0.1  # Halve opponent's velocity
+                velocity[opponent_id] *= 0.5  # Halve opponent's velocity
+            elif obj['type'] == 'slippery':
+                handling[player_id] = base_handling * 0.3  # Reduce handling to 30% for sliding effect
+                slippery_end_time[player_id] = t + 3000  # 3 seconds
             obj['active'] = False
     if boost_end_time[player_id] and t > boost_end_time[player_id]:
         max_speed[player_id] = top_speed
         boost_end_time[player_id] = 0
+    if slippery_end_time[player_id] and t > slippery_end_time[player_id]:
+        handling[player_id] = base_handling
+        slippery_end_time[player_id] = 0
 
 def check_car_collision():
     p1_x, p1_y, p1_z = position[0]
@@ -335,9 +356,9 @@ def update_physics():
             velocity[player_id] -= acceleration / 2 if velocity[player_id] > 0 else 0
         velocity[player_id] = max(0, min(max_speed[player_id], velocity[player_id]))
         if keys[left_key]:
-            position[player_id][0] += handling
+            position[player_id][0] += handling[player_id]
         if keys[right_key]:
-            position[player_id][0] -= handling
+            position[player_id][0] -= handling[player_id]
         new_x = max(-TRACK_WIDTH / 2 + 0.1, min(TRACK_WIDTH / 2 - 0.1, position[player_id][0]))
         if new_x != position[player_id][0]:
             velocity[player_id] *= 0.9
@@ -372,16 +393,17 @@ def update_physics():
 
 # --- LEVEL MANAGEMENT ---
 def set_level_properties(level):
-    global handling, particles
+    global base_handling, handling, particles
     if level == 0:
-        handling = 0.06
+        base_handling = 0.06
         particles = []
     elif level == 1:
-        handling = 0.03
+        base_handling = 0.03
         particles = [{'pos': [random.uniform(-10, 10), 20, random.uniform(-10, 10)],
                       'vel': [0, random.uniform(-1.0, -0.5), 0]} for _ in range(150)]
     elif level == 2:
-        handling = 0.12
+        base_handling = 0.12
+    handling = [base_handling, base_handling]
 
 def next_level():
     global current_level, game_finished, position, velocity, max_speed, boost_end_time, level_completed, countdown_state, countdown_start_time
@@ -391,6 +413,7 @@ def next_level():
     velocity = [0.0, 0.0]
     max_speed = [top_speed, top_speed]
     boost_end_time = [0, 0]
+    slippery_end_time = [0, 0]
     level_completed = False
     set_level_properties(current_level)
     generate_objects()
