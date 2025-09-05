@@ -26,6 +26,7 @@ level_complete_time = 0  # Timestamp when level is completed
 paused = False  # Pause state for the game
 health = [5.0, 5.0]  # Health for Player 1 and Player 2
 round_winners = []  # Stores winners of each round
+finish_times = [None, None]
 
 # Car state for two players
 position = [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]  # Player positions (x, y, z)
@@ -335,9 +336,9 @@ def check_collisions(player_id):
     car_min = (cx - 0.1, cy - 0.1, cz - 0.1)
     car_max = (cx + 0.1, cy + 0.1, cz + 0.1)
     
-    t = glutGet(GLUT_ELAPSED_TIME)
+    t = time.time() 
     
-    if player_id == 0:
+    if player_id == 0:          #For speed down object to affect the opponent
         opponent_id = 1 
     else:
         opponent_id = 0 
@@ -349,13 +350,8 @@ def check_collisions(player_id):
         
         x, y, z = obj['pos']
         
-        if obj['type'] == 'slippery':
-            o_min = (x - 0.5, y - 0.1, z - 0.5)
-            o_max = (x + 0.5, y + 0.1, z + 0.5)
-            
-        else:
-            o_min = (x - 0.125, y - 0.125, z - 0.125)
-            o_max = (x + 0.125, y + 0.125, z + 0.125)
+        o_min = (x - 0.3, y - 0.05, z - 0.3)
+        o_max = (x + 0.3, y + 0.05, z + 0.3)
         
         if aabb_collide(car_min, car_max, o_min, o_max):
             
@@ -384,7 +380,7 @@ def check_collisions(player_id):
                 
             obj['active'] = False
     
-    if boost_end_time[player_id] and t > boost_end_time[player_id]:
+    if boost_end_time[player_id] and t > boost_end_time[player_id]:     # Reset boost effect
         max_speed[player_id] = top_speed
         boost_end_time[player_id] = 0
     
@@ -429,39 +425,47 @@ def update_physics():
         
         if keys[accel_key]:
             velocity[player_id] += acceleration
+            
+        if keys[accel_key]:
+            velocity[player_id] += acceleration
         else:
-            velocity[player_id] -= acceleration / 2 if velocity[player_id] > 0 else 0
+            if velocity[player_id] > 0:
+                velocity[player_id] -= acceleration / 2 
+            else: 
+                velocity[player_id] = 0
         
-        velocity[player_id] = max(0, min(max_speed[player_id], velocity[player_id]))
+        velocity[player_id] = max(0, min(max_speed[player_id], velocity[player_id]))     # Velocity dont cross max speed and dont go negative
         
         if keys[left_key]:
             position[player_id][0] += handling[player_id]
         if keys[right_key]:
             position[player_id][0] -= handling[player_id]
         
-        new_x = max(-TRACK_WIDTH / 2 + 0.1, min(TRACK_WIDTH / 2 - 0.1, position[player_id][0]))
+        new_x = max(-TRACK_WIDTH / 2 + 0.1, min(TRACK_WIDTH / 2 - 0.1, position[player_id][0]))   # Stay within track bounds
         
-        if new_x != position[player_id][0]:
+        if new_x != position[player_id][0]:         # If out of bounds, speed penalty
             velocity[player_id] *= 0.9
             
         position[player_id][0] = new_x
         position[player_id][2] += velocity[player_id]
         
         if position[player_id][2] >= 150.0:
+            position[player_id][2] = 150.0 
             game_finished[player_id] = True
+            finish_times[player_id] = time.time()  # Record finish time
     
     if all(game_finished) and not level_completed:
-        level_completed = True
-        level_complete_time = glutGet(GLUT_ELAPSED_TIME)
         
-        if position[0][2] > position[1][2]:
-            round_winners.append(0)
-            
-        elif position[1][2] > position[0][2]:
-            round_winners.append(1)
+        level_completed = True
+        
+        if finish_times[0] < finish_times[1]:
+            round_winners.append(0)  
+        elif finish_times[1] < finish_times[0]:
+            round_winners.append(1)  
             
         else:
-            round_winners.append(-1)
+            round_winners.append(-1) # Tie
+    
     
     if level_completed and keys['enter'] and current_level == 0:
         next_level()
@@ -494,7 +498,7 @@ def set_level_properties(level):
 
 
 def next_level():
-    global current_level, game_finished, position, velocity, max_speed, boost_end_time, level_completed, start_delay_time, health, slippery_end_time
+    global current_level, game_finished, position, velocity, max_speed, boost_end_time, level_completed, start_delay_time, health, slippery_end_time, finish_times
     
     current_level += 1
     game_finished = [False, False]
@@ -505,10 +509,12 @@ def next_level():
     slippery_end_time = [0, 0]
     health = [5.0, 5.0]
     level_completed = False
+    finish_times = [None, None]  # Reset finish times
     set_level_properties(current_level)
     generate_objects()
     generate_trees()
     start_delay_time = time.time()
+
 
 
 def setup_viewport(player_id, width, height):
