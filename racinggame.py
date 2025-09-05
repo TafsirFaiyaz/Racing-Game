@@ -1,4 +1,3 @@
-# Import required OpenGL libraries for 3D rendering and GLUT for window/input handling
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
@@ -11,16 +10,16 @@ import time
 # Define track width for the racing path
 TRACK_WIDTH = 10.0
 
-# Lists to store track control points, spline points, objects, particles, and trees
+# Lists to store track control points, track points, objects, particles
 CONTROL_POINTS = []
-SPLINE_POINTS = []
+TRACK_POINTS = []
 objects = []
 particles = []
 trees = []
 
 # Game state variables
 game_finished = [False, False]  # Tracks if each player has finished the race
-current_level = 0  # Current level (0: Sunny, 1: Rainy, 2: Snowy)
+current_level = 0  # Current level (0: Sunny, 1: Rainy)
 countdown_state = None  # Countdown state: None, 3, 2, 1, 'GO!', 'racing'
 
 countdown_start_time = 0  # Timestamp when countdown starts
@@ -58,78 +57,68 @@ keys = {
     'p2_left': False,   # Player 2 steer left (Left arrow)
     'p2_right': False,  # Player 2 steer right (Right arrow)
     'enter': False,     # Enter key for advancing levels
-    'restart': False    # R key for restarting game
 }
 
 
 def generate_track():
-    """
-    Generate a simple straight track along the z-axis using spline points.
-    Stores points in SPLINE_POINTS list.
-    """
     samples = 600
-    SPLINE_POINTS.clear()
+    TRACK_POINTS.clear()
     
     for i in range(samples):
         t = i / float(samples)
         x = 0.0
         y = 0.0
         z = t * 150.0
-        SPLINE_POINTS.append((x, y, z))
+        TRACK_POINTS.append((x, y, z))
 
 
 def generate_trees():
-    """
-    Generate trees on both sides of the track at random positions.
-    Stores tree positions in the trees list.
-    """
     trees.clear()
-    num_trees_per_side = 30
+    num_trees_per_side= 30
     
-    for _ in range(num_trees_per_side):
+    for i in range(num_trees_per_side):
         z = random.uniform(0, 150)
-        x_left = -6.0 + random.uniform(-1.0, 1.0)
+        x_left = -6.0 + random.uniform(-1.0, 1.0)    # 6 co-ordinates left from track
         x_right = 6.0 + random.uniform(-1.0, 1.0)
+        
         trees.append((x_left, 0.0, z))
         trees.append((x_right, 0.0, z))
 
 
 # --- OBJECT PLACEMENT ---
 def generate_objects():
-    """
-    Place objects (obstacles, boosts, etc.) randomly along the track.
-    Stores objects in the objects list with type and position.
-    """
-    num_obs = 50
+
+    num_cube = 50
     num_boost = 10
     num_speed_down = 5
     num_slippery = 15
+    
+    total_obj = num_cube + num_boost + num_speed_down + num_slippery
+    
     objects.clear()
     
-    N = len(SPLINE_POINTS)
-    picks = random.sample(range(10, N - 10), num_obs + num_boost + num_speed_down + num_slippery)
-    kinds = ['obs'] * num_obs + ['boost'] * num_boost + ['speed_down'] * num_speed_down + ['slippery'] * num_slippery
-    random.shuffle(kinds)
+    N = len(TRACK_POINTS)
+    picks = random.sample(range(10, N - 10), total_obj)           # Track points theke randomly points select kore obj bosanor jonno. Random_points_total = total_obj
+    
+    kinds = ['obs'] * num_cube + ['boost'] * num_boost + ['speed_down'] * num_speed_down + ['slippery'] * num_slippery   # Kinds ekta list jeita te sob gula obj ache
+    
+    random.shuffle(kinds) # Randomly shuffle the kinds list to mix object types
     
     for idx, kind in zip(picks, kinds):
-        x, y, z = SPLINE_POINTS[idx]
+        x, y, z = TRACK_POINTS[idx]
         x = random.uniform(-TRACK_WIDTH / 2 + 0.25, TRACK_WIDTH / 2 - 0.25)
         objects.append({'type': kind, 'pos': (x, y, z), 'active': True})
 
 
-# --- DRAW ROUTINES ---
 def draw_track():
-    """
-    Draw the track as a series of quads for the asphalt and white lines for boundaries.
-    Includes dashed center line for visual guidance.
-    """
+
     # Draw asphalt track
     glBegin(GL_QUADS)
     glColor3f(0.2, 0.2, 0.2)  # Dark gray for asphalt
     
-    for i in range(len(SPLINE_POINTS) - 1):
-        x1, y1, z1 = SPLINE_POINTS[i]
-        x2, y2, z2 = SPLINE_POINTS[i + 1]
+    for i in range(len(TRACK_POINTS) - 1):
+        x1, y1, z1 = TRACK_POINTS[i]
+        x2, y2, z2 = TRACK_POINTS[i + 1]
         nx, nz = -1, 0  # Normal for flat track
         w = TRACK_WIDTH / 2
         
@@ -140,14 +129,14 @@ def draw_track():
     
     glEnd()
 
-    # Draw white side lines and dashed center line
+    # Draw white side lines
     glColor3f(1.0, 1.0, 1.0)  # White color
     glLineWidth(2.0)
     glBegin(GL_LINES)
     
-    for i in range(len(SPLINE_POINTS) - 1):
-        z1 = SPLINE_POINTS[i][2]
-        z2 = SPLINE_POINTS[i + 1][2]
+    for i in range(len(TRACK_POINTS) - 1):
+        z1 = TRACK_POINTS[i][2]
+        z2 = TRACK_POINTS[i + 1][2]
         
         # Left side line
         glVertex3f(-4.8, 0.01, z1)
@@ -156,11 +145,6 @@ def draw_track():
         # Right side line
         glVertex3f(4.8, 0.01, z1)
         glVertex3f(4.8, 0.01, z2)
-        
-        # Dashed center line
-        if (i % 10) < 5:
-            glVertex3f(0.0, 0.01, z1)
-            glVertex3f(0.0, 0.01, z2)
     
     glEnd()
     glLineWidth(1.0)
@@ -264,20 +248,12 @@ def draw_objects():
 
 def draw_tree(x, y, z):
     """
-    Draw a tree with a trunk and simple pyramid-shaped foliage.
+    Draw a tree with simple pyramid-shaped foliage.
     Args:
         x, y, z: Position of the tree
     """
     glPushMatrix()
     glTranslatef(x, y, z)
-    
-    # Draw trunk
-    glColor3f(0.5, 0.35, 0.05)  # Brown
-    glPushMatrix()
-    glTranslatef(0, 0.5, 0)
-    glScalef(0.2, 1.0, 0.2)
-    glutSolidCube(1.0)
-    glPopMatrix()
     
     # Draw foliage (pyramid shape using triangles)
     glColor3f(0.0, 0.6, 0.0)  # Dark green
@@ -286,7 +262,7 @@ def draw_tree(x, y, z):
     glVertex3f(-1.0, 0.0, 0.0)
     glVertex3f(1.0, 0.0, 0.0)
     glVertex3f(0.0, 3.0, 0.0)
-    # Back (corrected to avoid duplicate vertices)
+    # Back
     glVertex3f(1.0, 0.0, 0.0)
     glVertex3f(-1.0, 0.0, 0.0)
     glVertex3f(0.0, 3.0, 0.0)
@@ -313,7 +289,7 @@ def draw_trees():
 
 def draw_particles():
     """
-    Draw weather particles (rain or snow) based on the current level.
+    Draw weather particles (rain) based on the current level.
     """
     if current_level == 1:  # Rainy level
         glColor3f(0.5, 0.5, 1.0)
@@ -323,38 +299,6 @@ def draw_particles():
             glVertex3f(x, y, z)
             glVertex3f(x, y - 1.0, z)
         glEnd()
-        
-    elif current_level == 2:  # Snowy level
-        glColor3f(1.0, 1.0, 1.0)
-        glPointSize(3.0)
-        glBegin(GL_POINTS)
-        for p in particles:
-            x, y, z = p['pos']
-            glVertex3f(x, y, z)
-            
-        glEnd()
-        glPointSize(1.0)
-
-
-def draw_sun():
-    """
-    Draw a sun with rays for the sunny level.
-    """
-    glPushMatrix()
-    glTranslatef(0, 15, 150)
-    glColor3f(1.0, 1.0, 0.0)
-    glutSolidSphere(2.0, 20, 20)
-    glBegin(GL_LINES)
-    
-    for i in range(12):
-        angle = math.radians(i * 30)
-        x = math.cos(angle) * 4.0
-        y = math.sin(angle) * 4.0
-        glVertex3f(0, 0, 0)
-        glVertex3f(x, y, 0)
-    
-    glEnd()
-    glPopMatrix()
 
 
 def draw_sky():
@@ -377,14 +321,6 @@ def draw_sky():
         glVertex3f(-100, 100, -100)
         glVertex3f(100, 100, -100)
         glColor3f(0.6, 0.6, 0.6)  # Lighter gray at bottom
-        glVertex3f(100, 0, -100)
-        glVertex3f(-100, 0, -100)
-        
-    elif current_level == 2:  # Snowy
-        glColor3f(0.7, 0.7, 0.7)  # Gray at top
-        glVertex3f(-100, 100, -100)
-        glVertex3f(100, 100, -100)
-        glColor3f(0.9, 0.9, 0.9)  # Almost white at bottom
         glVertex3f(100, 0, -100)
         glVertex3f(-100, 0, -100)
     
@@ -513,7 +449,6 @@ def show_overall_winner():
     glLoadIdentity()
     glColor3f(1, 1, 1)
     draw_text(400 - len(winner_text) * 9 / 2, 300, winner_text)
-    draw_text(400 - len("Press R to Restart") * 7 / 2, 280, "Press R to Restart")
     
     glPopMatrix()
     glMatrixMode(GL_PROJECTION)
@@ -640,7 +575,7 @@ def update_physics():
     """
     global position, velocity, game_finished, level_completed, level_complete_time, current_level, round_winners, countdown_state
     
-    if paused or countdown_state != 'racing':
+    if paused or countdown_state != 'racing' or (level_completed and current_level == 1):
         return
     
     check_car_collision()
@@ -701,12 +636,9 @@ def update_physics():
         else:
             round_winners.append(-1)
     
-    if level_completed and keys['enter'] and current_level < 2:
+    if level_completed and keys['enter'] and current_level == 0:
         next_level()
-    
-    if level_completed and current_level == 2 and keys['restart']:
-        restart_game()
-    
+        
     for p in particles:
         p['pos'][0] += p['vel'][0]
         p['pos'][1] += p['vel'][1]
@@ -721,9 +653,6 @@ def update_physics():
             
             if current_level == 1:
                 p['vel'] = [0, random.uniform(-2.5, -1.5), 0]
-                
-            elif current_level == 2:
-                p['vel'] = [random.uniform(-0.02, 0.02), random.uniform(-0.7, -0.3), random.uniform(-0.02, 0.02)]
 
 
 # --- LEVEL MANAGEMENT ---
@@ -731,7 +660,7 @@ def set_level_properties(level):
     """
     Set properties (handling, particles) for the current level.
     Args:
-        level: Integer (0: Sunny, 1: Rainy, 2: Snowy)
+        level: Integer (0: Sunny, 1: Rainy)
     """
     global base_handling, handling, particles
     
@@ -744,12 +673,6 @@ def set_level_properties(level):
         base_handling = 0.03
         particles = [{'pos': [random.uniform(-10, 10), 20, random.uniform(-10, 10)],
                       'vel': [0, random.uniform(-1.0, -0.5), 0]} for _ in range(150)]
-        
-    elif level == 2:
-        
-        base_handling = 0.12
-        particles = [{'pos': [random.uniform(-10, 10), 20, random.uniform(-10, 10)],
-                      'vel': [random.uniform(-0.02, 0.02), random.uniform(-0.7, -0.3), random.uniform(-0.02, 0.02)]} for _ in range(150)]
     
     handling = [base_handling, base_handling]
 
@@ -778,19 +701,6 @@ def next_level():
     
     countdown_state = 3
     countdown_start_time = time.time()
-
-
-def restart_game():
-    """
-    Restart the entire game, resetting all levels and state.
-    """
-    global current_level, round_winners, countdown_state, countdown_start_time, health
-    
-    current_level = -1
-    round_winners = []
-    health = [5.0, 5.0]
-    next_level()
-
 
 # --- SPLIT SCREEN RENDERING ---
 def setup_viewport(player_id, width, height):
@@ -823,9 +733,6 @@ def draw_player_view(player_id, width, height):
     elif current_level == 1:
         glClearColor(0.5, 0.5, 0.5, 1.0)
         # Rainy
-    elif current_level == 2:
-        glClearColor(0.8, 0.8, 0.8, 1.0) 
-        # Snowy
     
     if player_id == 0:
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -833,58 +740,55 @@ def draw_player_view(player_id, width, height):
     else:
         glClear(GL_DEPTH_BUFFER_BIT)
     
-    glLoadIdentity()
-    px, py, pz = position[player_id]
-    cos_o = math.cos(orientation[player_id])
-    sin_o = math.sin(orientation[player_id])
-    
-    # Set up camera
-    if camera_mode[player_id] == 0:  # First-person
-        eye_x = px + 0.3 * sin_o
-        eye_y = py + 0.1
-        eye_z = pz + 0.3 * cos_o
+    if not (all(game_finished) and current_level == 1):
+        glLoadIdentity()
+        px, py, pz = position[player_id]
+        cos_o = math.cos(orientation[player_id])
+        sin_o = math.sin(orientation[player_id])
         
-        center_x = px + 0.8 * sin_o
-        center_y = py + 0.1
-        center_z = pz + 0.8 * cos_o
+        # Set up camera
+        if camera_mode[player_id] == 0:  # First-person
+            eye_x = px + 0.3 * sin_o
+            eye_y = py + 0.1
+            eye_z = pz + 0.3 * cos_o
+            
+            center_x = px + 0.8 * sin_o
+            center_y = py + 0.1
+            center_z = pz + 0.8 * cos_o
+            
+            gluLookAt(eye_x, eye_y, eye_z, center_x, center_y, center_z, 0, 1, 0)
+        else:  # Third-person
+            eye_x = px - 4.0 * sin_o
+            eye_y = py + 2.5
+            eye_z = pz - 6.0 * cos_o
+            
+            center_x = px
+            center_y = py + 0.5
+            center_z = pz + 5.0
+            
+            gluLookAt(eye_x, eye_y, eye_z, center_x, center_y, center_z, 0, 1, 0)
         
-        gluLookAt(eye_x, eye_y, eye_z, center_x, center_y, center_z, 0, 1, 0)
-    else:  # Third-person
-        eye_x = px - 4.0 * sin_o
-        eye_y = py + 2.5
-        eye_z = pz - 6.0 * cos_o
+        # Draw scene components
+        draw_sky()
         
-        center_x = px
-        center_y = py + 0.5
-        center_z = pz + 5.0
+        glColor3f(0.0, 0.5, 0.0)
+        glBegin(GL_QUADS)
+        glVertex3f(-10, -0.01, 0)
+        glVertex3f(10, -0.01, 0)
+        glVertex3f(10, -0.01, 150)
+        glVertex3f(-10, -0.01, 150)
+        glEnd()
         
+        draw_track()
+        draw_trees()
+        draw_particles()
+        draw_objects()
         
-        gluLookAt(eye_x, eye_y, eye_z, center_x, center_y, center_z, 0, 1, 0)
-    
-    # Draw scene components
-    draw_sky()
-    
-    glColor3f(0.0, 0.5, 0.0)
-    glBegin(GL_QUADS)
-    glVertex3f(-10, -0.01, 0)
-    glVertex3f(10, -0.01, 0)
-    glVertex3f(10, -0.01, 150)
-    glVertex3f(-10, -0.01, 150)
-    glEnd()
-    
-    draw_track()
-    draw_trees()
-    draw_particles()
-    draw_objects()
-    
-    for i in range(2):
-        glPushMatrix()
-        glTranslatef(*position[i])
-        draw_car(car_colors[i])
-        glPopMatrix()
-    
-    if current_level == 0:
-        draw_sun()
+        for i in range(2):
+            glPushMatrix()
+            glTranslatef(*position[i])
+            draw_car(car_colors[i])
+            glPopMatrix()
     
     # Draw HUD
     viewport_width = width // 2
@@ -898,48 +802,52 @@ def draw_player_view(player_id, width, height):
     glPushMatrix()
     glLoadIdentity()
     
-    glColor3f(*car_colors[player_id])
-    
-    player_text = f"Player {player_id + 1}"
-    x_pos = 10
-    y_pos = viewport_height - 20
-    
-    glRasterPos2f(x_pos, y_pos)
-    
-    for char in player_text:
-        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, ord(char))
-    
-    speed_text = f"Speed: {int(velocity[player_id] * 1000)}"
-    
-    glRasterPos2f(x_pos, y_pos - 20)
-    
-    for char in speed_text:
-        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, ord(char))
-    
-    health_text = f"Health: {int(health[player_id])}/5"
-    
-    glRasterPos2f(x_pos, y_pos - 60)
-    
-    for char in health_text:
-        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, ord(char))
-    
-    level_names = ["Sunny", "Rainy", "Snowy"]
-    level_text = f"Level: {current_level + 1} ({level_names[current_level]})"
-    glRasterPos2f(x_pos, y_pos - 40)
-    
-    for char in level_text:
-        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, ord(char))
-    
-    if game_finished[player_id] and current_level < 2:
+    if not (all(game_finished) and current_level == 1):
+        glColor3f(*car_colors[player_id])
         
-        finish_text = "FINISHED! Press Enter"
-        glColor3f(1, 1, 0)
-        x_pos = viewport_width // 2 - 50
-        y_pos = viewport_height // 2
+        player_text = f"Player {player_id + 1}"
+        x_pos = 10
+        y_pos = viewport_height - 20
         
         glRasterPos2f(x_pos, y_pos)
-        for char in finish_text:
+        
+        for char in player_text:
             glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, ord(char))
+        
+        speed_text = f"Speed: {int(velocity[player_id] * 1000)}"
+        
+        glRasterPos2f(x_pos, y_pos - 20)
+        
+        for char in speed_text:
+            glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, ord(char))
+        
+        health_text = f"Health: {int(health[player_id])}/5"
+        
+        glRasterPos2f(x_pos, y_pos - 60)
+        
+        for char in health_text:
+            glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, ord(char))
+        
+        level_names = ["Sunny", "Rainy"]
+        level_text = f"Level: {current_level + 1} ({level_names[current_level]})"
+        glRasterPos2f(x_pos, y_pos - 40)
+        
+        for char in level_text:
+            glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, ord(char))
+        
+        if game_finished[player_id] and current_level == 0:
+            
+            finish_text = "FINISHED! Press Enter"
+            glColor3f(1, 1, 0)
+            x_pos = viewport_width // 2 - 50
+            y_pos = viewport_height // 2
+            
+            glRasterPos2f(x_pos, y_pos)
+            for char in finish_text:
+                glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, ord(char))
+    
+    if all(game_finished) and current_level == 1:
+        show_overall_winner()
     
     glPopMatrix()
     glMatrixMode(GL_PROJECTION)
@@ -965,7 +873,7 @@ def draw_player_view(player_id, width, height):
         draw_countdown()
         draw_pause_overlay()
         
-        if all(game_finished) and current_level < 2:
+        if all(game_finished) and current_level == 0:
             
             glColor3f(1, 1, 1)
             progression_text = "Press Enter for Next Level"
@@ -977,7 +885,7 @@ def draw_player_view(player_id, width, height):
             for char in progression_text:
                 glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, ord(char))
         
-        if all(game_finished) and current_level == 2:
+        if all(game_finished) and current_level == 1:
             show_overall_winner()
         
         glPopMatrix()
@@ -1069,8 +977,7 @@ def keyboard_down(k, x, y):
         keys['p1_right'] = True
     elif k == b'\r':
         keys['enter'] = True
-    elif k == b'r' or k == b'R':
-        keys['restart'] = True
+
     elif k == b'p' or k == b'P':
         paused = not paused
 
@@ -1090,8 +997,7 @@ def keyboard_up(k, x, y):
         keys['p1_right'] = False
     elif k == b'\r':
         keys['enter'] = False
-    elif k == b'p' or k == b'P':
-        keys['restart'] = False
+
 
 
 # --- INITIALIZATION ---
@@ -1129,7 +1035,6 @@ def init_players():
     global position
     position[0][0] = -TRACK_WIDTH / 4
     position[1][0] = TRACK_WIDTH / 4
-
 
 
 glutInit()
