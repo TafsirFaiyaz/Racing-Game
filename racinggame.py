@@ -531,15 +531,18 @@ def draw_player_view(player_id, width, height):
     
     if current_level == 0:
         glClearColor(0.529, 0.808, 0.922, 1.0)
+        
     elif current_level == 1:
         glClearColor(0.5, 0.5, 0.5, 1.0)
     
     if player_id == 0:
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        
     else:
         glClear(GL_DEPTH_BUFFER_BIT)
     
-    if not (all(game_finished) and current_level == 1):
+    if not (all(game_finished) and current_level == 1):     # Game finish na hoile 3D view draw hobe
+        
         glLoadIdentity()
         px, py, pz = position[player_id]
         cos_o = math.cos(orientation[player_id])
@@ -549,27 +552,34 @@ def draw_player_view(player_id, width, height):
             eye_x = px + 0.3 * sin_o
             eye_y = py + 0.1
             eye_z = pz + 0.3 * cos_o
+            
             center_x = px + 0.8 * sin_o
             center_y = py + 0.1
             center_z = pz + 0.8 * cos_o
+            
             gluLookAt(eye_x, eye_y, eye_z, center_x, center_y, center_z, 0, 1, 0)
+            
         else:
             eye_x = px - 4.0 * sin_o
             eye_y = py + 2.5
             eye_z = pz - 6.0 * cos_o
+            
             center_x = px
             center_y = py + 0.5
             center_z = pz + 5.0
+            
             gluLookAt(eye_x, eye_y, eye_z, center_x, center_y, center_z, 0, 1, 0)
         
         draw_sky()
-        glColor3f(0.0, 0.5, 0.0)
+        
+        glColor3f(0.0, 0.5, 0.0)            # Ground Field
         glBegin(GL_QUADS)
         glVertex3f(-10, -0.01, 0)
         glVertex3f(10, -0.01, 0)
         glVertex3f(10, -0.01, 150)
         glVertex3f(-10, -0.01, 150)
         glEnd()
+        
         draw_track()
         draw_trees()
         draw_particles()
@@ -583,6 +593,7 @@ def draw_player_view(player_id, width, height):
     
     viewport_width = width // 2
     viewport_height = height
+    
     glMatrixMode(GL_PROJECTION)
     glPushMatrix()
     glLoadIdentity()
@@ -591,12 +602,15 @@ def draw_player_view(player_id, width, height):
     glPushMatrix()
     glLoadIdentity()
     
-    if not (all(game_finished) and current_level == 1):
+    if not (all(game_finished) and current_level == 1):                 # Text drawing part
+        
         glColor3f(*car_colors[player_id])
         player_text = f"Player {player_id + 1}"
         x_pos = 10
         y_pos = viewport_height - 20
+        
         glRasterPos2f(x_pos, y_pos)
+        
         for char in player_text:
             glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, ord(char))
         
@@ -633,11 +647,13 @@ def draw_player_view(player_id, width, height):
     glPopMatrix()
     glMatrixMode(GL_MODELVIEW)
     
-    if player_id == 1:
+    if player_id == 1:      
+        
         glViewport(0, 0, width, height)
         glMatrixMode(GL_PROJECTION)
         glPushMatrix()
         glLoadIdentity()
+        
         glOrtho(0, width, 0, height, -1, 1)
         glMatrixMode(GL_MODELVIEW)
         glPushMatrix()
