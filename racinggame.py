@@ -157,19 +157,26 @@ def draw_objects():
             glColor3f(0.5, 0.5, 0.5)
             glScalef(0.25, 0.25, 0.25)
             glutSolidCube(2.0)
+            
         elif obj['type'] == 'boost':
             glColor3f(1, 1, 0)
             glutSolidSphere(0.25, 16, 16)
+            
         elif obj['type'] == 'speed_down':
             glColor3f(0, 1, 0)
             glutSolidSphere(0.25, 16, 16)
+            
+            
         elif obj['type'] == 'slippery':
             glColor3f(0.6, 0.4, 0)
+            
             glBegin(GL_QUADS)
+            
             glVertex3f(-0.5, 0, -0.5)
             glVertex3f(0.5, 0, -0.5)
             glVertex3f(0.5, 0, 0.5)
             glVertex3f(-0.5, 0, 0.5)
+            
             glEnd()
         
         glPopMatrix()
@@ -179,13 +186,17 @@ def draw_tree(x, y, z):
     glPushMatrix()
     glTranslatef(x, y, z)
     glColor3f(0.0, 0.6, 0.0)
+    
     glBegin(GL_TRIANGLES)
+    
     glVertex3f(-1.0, 0.0, 0.0)
     glVertex3f(1.0, 0.0, 0.0)
     glVertex3f(0.0, 3.0, 0.0)
+    
     glVertex3f(0.0, 0.0, -1.0)
     glVertex3f(0.0, 0.0, 1.0)
     glVertex3f(0.0, 3.0, 0.0)
+    
     glEnd()
     glPopMatrix()
 
@@ -196,27 +207,32 @@ def draw_trees():
 
 
 def draw_particles():
+    
     if current_level == 1:
         glColor3f(0.5, 0.5, 1.0)
         glBegin(GL_LINES)
+        
         for p in particles:
             x, y, z = p['pos']
             glVertex3f(x, y, z)
             glVertex3f(x, y - 1.0, z)
+            
         glEnd()
 
 
 def draw_sky():
+    
     glDisable(GL_DEPTH_TEST)
     glBegin(GL_QUADS)
     
     if current_level == 0:
-        glColor3f(0.529, 0.808, 0.922)
+        glColor3f(0.5, 0.8, 0.9)
         glVertex3f(-100, 100, -100)
         glVertex3f(100, 100, -100)
-        glColor3f(0.678, 0.847, 0.902)
+        glColor3f(0.67, 0.85, 0.9)
         glVertex3f(100, 0, -100)
         glVertex3f(-100, 0, -100)
+        
     elif current_level == 1:
         glColor3f(0.4, 0.4, 0.4)
         glVertex3f(-100, 100, -100)
@@ -230,6 +246,7 @@ def draw_sky():
 
 
 def draw_text(x, y, text):
+    
     glMatrixMode(GL_PROJECTION)
     glPushMatrix()
     glLoadIdentity()
@@ -237,9 +254,11 @@ def draw_text(x, y, text):
     glMatrixMode(GL_MODELVIEW)
     glPushMatrix()
     glLoadIdentity()
+    
     glRasterPos2f(x, y)
     for char in text:
         glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, ord(char))
+        
     glPopMatrix()
     glMatrixMode(GL_PROJECTION)
     glPopMatrix()
@@ -247,6 +266,7 @@ def draw_text(x, y, text):
 
 
 def draw_pause_overlay():
+    
     if paused:
         glMatrixMode(GL_PROJECTION)
         glPushMatrix()
@@ -257,9 +277,11 @@ def draw_pause_overlay():
         glLoadIdentity()
         glColor3f(1, 1, 1)
         text = "PAUSED"
+        
         glRasterPos2f(400 - len(text) * 14 / 2, 300)
         for char in text:
             glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, ord(char))
+            
         glPopMatrix()
         glMatrixMode(GL_PROJECTION)
         glPopMatrix()
@@ -269,7 +291,15 @@ def draw_pause_overlay():
 def show_overall_winner():
     p1_wins = round_winners.count(0)
     p2_wins = round_winners.count(1)
-    winner_text = "Player 1 Won!" if p1_wins > p2_wins else "Player 2 Won!" if p2_wins > p1_wins else "It's a Tie!"
+    
+    if p1_wins > p2_wins:
+        winner_text = "Player 1 Won!"
+    
+    elif p2_wins > p1_wins:
+        winner_text = "Player 2 Won!"
+        
+    else:
+        winner_text = "It's a Tie!"
     
     glMatrixMode(GL_PROJECTION)
     glPushMatrix()
@@ -279,7 +309,9 @@ def show_overall_winner():
     glPushMatrix()
     glLoadIdentity()
     glColor3f(1, 1, 1)
+    
     draw_text(400 - len(winner_text) * 9 / 2, 300, winner_text)
+    
     glPopMatrix()
     glMatrixMode(GL_PROJECTION)
     glPopMatrix()
@@ -287,10 +319,16 @@ def show_overall_winner():
 
 
 def aabb_collide(min1, max1, min2, max2):
-    return all(min1[i] < max2[i] and max1[i] > min2[i] for i in range(3))
+    
+    x_overlap = min1[0] < max2[0] and max1[0] > min2[0]
+    y_overlap = min1[1] < max2[1] and max1[1] > min2[1]
+    z_overlap = min1[2] < max2[2] and max1[2] > min2[2]
+    
+    return x_overlap and y_overlap and z_overlap
 
 
 def check_collisions(player_id):
+    
     global velocity, max_speed, boost_end_time, handling, health
     
     cx, cy, cz = position[player_id]
@@ -298,40 +336,56 @@ def check_collisions(player_id):
     car_max = (cx + 0.1, cy + 0.1, cz + 0.1)
     
     t = glutGet(GLUT_ELAPSED_TIME)
-    opponent_id = 1 if player_id == 0 else 0
+    
+    if player_id == 0:
+        opponent_id = 1 
+    else:
+        opponent_id = 0 
     
     for obj in objects:
+        
         if not obj['active']:
             continue
         
         x, y, z = obj['pos']
+        
         if obj['type'] == 'slippery':
             o_min = (x - 0.5, y - 0.1, z - 0.5)
             o_max = (x + 0.5, y + 0.1, z + 0.5)
+            
         else:
             o_min = (x - 0.125, y - 0.125, z - 0.125)
             o_max = (x + 0.125, y + 0.125, z + 0.125)
         
         if aabb_collide(car_min, car_max, o_min, o_max):
+            
             if obj['type'] == 'obs':
                 health[player_id] -= 1.0
-                max_speed[player_id] *= 0.9
-                velocity[player_id] = 0.0
+
+                
                 if health[player_id] <= 0:
                     health[player_id] = 0
                     max_speed[player_id] *= 0.1
+                    
+                else:
+                    max_speed[player_id] *= 0.9
+                    velocity[player_id] = 0.0
+                    
             elif obj['type'] == 'boost':
                 max_speed[player_id] = BOOSTED_TOP_SPEED
                 boost_end_time[player_id] = t + 2000
+                
             elif obj['type'] == 'speed_down':
                 velocity[opponent_id] *= 0.2
+                
             elif obj['type'] == 'slippery':
                 handling[player_id] = base_handling * 0.3
                 slippery_end_time[player_id] = t + 2000
+                
             obj['active'] = False
     
     if boost_end_time[player_id] and t > boost_end_time[player_id]:
-        max_speed[player_id] = top_speed if health[player_id] > 0 else max_speed[player_id]
+        max_speed[player_id] = top_speed
         boost_end_time[player_id] = 0
     
     if slippery_end_time[player_id] and t > slippery_end_time[player_id]:
@@ -349,9 +403,6 @@ def check_car_collision():
     if dist_squared < 0.04:
         loser = random.choice([0, 1])
         velocity[loser] = 0.0
-        push_dir = 0.05 if dx < 0 else -0.05
-        position[0][0] += push_dir
-        position[1][0] -= push_dir
 
 
 def update_physics():
@@ -389,8 +440,10 @@ def update_physics():
             position[player_id][0] -= handling[player_id]
         
         new_x = max(-TRACK_WIDTH / 2 + 0.1, min(TRACK_WIDTH / 2 - 0.1, position[player_id][0]))
+        
         if new_x != position[player_id][0]:
             velocity[player_id] *= 0.9
+            
         position[player_id][0] = new_x
         position[player_id][2] += velocity[player_id]
         
@@ -400,10 +453,13 @@ def update_physics():
     if all(game_finished) and not level_completed:
         level_completed = True
         level_complete_time = glutGet(GLUT_ELAPSED_TIME)
+        
         if position[0][2] > position[1][2]:
             round_winners.append(0)
+            
         elif position[1][2] > position[0][2]:
             round_winners.append(1)
+            
         else:
             round_winners.append(-1)
     
@@ -414,22 +470,26 @@ def update_physics():
         p['pos'][0] += p['vel'][0]
         p['pos'][1] += p['vel'][1]
         p['pos'][2] += p['vel'][2]
-        avg_z = (position[0][2] + position[1][2]) / 2
+        
         if p['pos'][1] < -1:
-            p['pos'] = [random.uniform(-5, 5), 20, random.uniform(max(0, avg_z - 20), min(150, avg_z + 20))]
+            p['pos'] = [random.uniform(-5, 5), 20, random.uniform(0, 150)]
             if current_level == 1:
                 p['vel'] = [0, random.uniform(-2.5, -1.5), 0]
 
 
 def set_level_properties(level):
+    
     global base_handling, handling, particles
+    
     if level == 0:
         base_handling = 0.06
         particles = []
+        
     elif level == 1:
         base_handling = 0.03
         particles = [{'pos': [random.uniform(-10, 10), 20, random.uniform(-10, 10)],
                       'vel': [0, random.uniform(-1.0, -0.5), 0]} for _ in range(150)]
+        
     handling = [base_handling, base_handling]
 
 
