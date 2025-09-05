@@ -78,8 +78,8 @@ def generate_trees():
     
     for i in range(num_trees_per_side):
         z = random.uniform(0, 150)
-        x_left = -6.0 + random.uniform(-1.0, 1.0)    # 6 co-ordinates left from track
-        x_right = 6.0 + random.uniform(-1.0, 1.0)
+        x_left = -7.0 + random.uniform(-1.0, 1.0)    # 6 co-ordinates left from track
+        x_right = 7.0 + random.uniform(-1.0, 1.0)
         
         trees.append((x_left, 0.0, z))
         trees.append((x_right, 0.0, z))
@@ -88,9 +88,9 @@ def generate_trees():
 # --- OBJECT PLACEMENT ---
 def generate_objects():
 
-    num_cube = 50
+    num_cube = 40
     num_boost = 10
-    num_speed_down = 5
+    num_speed_down = 10
     num_slippery = 15
     
     total_obj = num_cube + num_boost + num_speed_down + num_slippery
@@ -118,45 +118,18 @@ def draw_track():
     for i in range(len(TRACK_POINTS) - 1):
         x1, y1, z1 = TRACK_POINTS[i]
         x2, y2, z2 = TRACK_POINTS[i + 1]
-        nx, nz = -1, 0  # Normal for flat track
         w = TRACK_WIDTH / 2
         
-        glVertex3f(x1 + nx * w, y1, z1 + nz * w)
-        glVertex3f(x1 - nx * w, y1, z1 - nz * w)
-        glVertex3f(x2 - nx * w, y2, z2 - nz * w)
-        glVertex3f(x2 + nx * w, y2, z2 + nz * w)
-    
-    glEnd()
-
-
-
-def draw_cube():
-    """
-    Draw a simple cube for obstacles and other objects.
-    """
-    glBegin(GL_QUADS)
-    vertices = [
-        (-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1),
-        (-1, -1, -1), (1, -1, -1), (1, 1, -1), (-1, 1, -1)
-    ]
-    faces = [
-        (0, 1, 2, 3), (4, 5, 6, 7), (3, 2, 6, 7),
-        (0, 1, 5, 4), (0, 3, 7, 4), (1, 2, 6, 5)
-    ]
-    
-    for face in faces:
-        for vertex in face:
-            glVertex3f(*vertices[vertex])
+        glVertex3f(x1 + w, y1, z1)
+        glVertex3f(x1 - w, y1, z1)
+        glVertex3f(x2 - w, y2, z2)
+        glVertex3f(x2 + w, y2, z2)
     
     glEnd()
 
 
 def draw_car(color):
-    """
-    Draw a car model with a body, cabin, and wheels.
-    Args:
-        color: RGB tuple for the car's body color
-    """
+
     # Draw car body
     glColor3f(*color)
     glPushMatrix()
@@ -203,7 +176,7 @@ def draw_objects():
         if obj['type'] == 'obs':
             glColor3f(0.5, 0.5, 0.5)
             glScalef(0.25, 0.25, 0.25)
-            draw_cube()
+            glutSolidCube(2.0)
             
         elif obj['type'] == 'boost':
             glColor3f(1, 1, 0)
@@ -227,11 +200,7 @@ def draw_objects():
 
 
 def draw_tree(x, y, z):
-    """
-    Draw a tree with simple pyramid-shaped foliage.
-    Args:
-        x, y, z: Position of the tree
-    """
+
     glPushMatrix()
     glTranslatef(x, y, z)
     
