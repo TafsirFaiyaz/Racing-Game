@@ -18,40 +18,40 @@ particles = []
 trees = []
 
 # Game state variables
-game_finished = [False, False]  # Tracks if each player has finished the race
-current_level = 0  # Current level (0: Sunny, 1: Rainy)
-start_delay_time = 0  # Timestamp when level starts for delay
-level_completed = False  # Flag for level completion
-level_complete_time = 0  # Timestamp when level is completed
-paused = False  # Pause state for the game
-health = [5.0, 5.0]  # Health for Player 1 and Player 2
-round_winners = []  # Stores winners of each round
+game_finished = [False, False]  
+current_level = 0  
+start_delay_time = 0
+level_completed = False  
+level_complete_time = 0  
+paused = False  
+health = [5.0, 5.0]
+round_winners = []  
 finish_times = [None, None]
 
 # Car state for two players
-position = [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]  # Player positions (x, y, z)
-orientation = [0.0, 0.0]  # Car orientations (radians)
-velocity = [0.0, 0.0]  # Current speed for each player
-top_speed = 0.3  # Base maximum speed
-acceleration = 0.005  # Acceleration rate
-base_handling = 0.06  # Base handling responsiveness
-handling = [base_handling, base_handling]  # Current handling for each player
-slippery_end_time = [0, 0]  # Time when slippery effect ends
-BOOSTED_TOP_SPEED = top_speed * 2.0  # Boosted speed multiplier
-max_speed = [top_speed, top_speed]  # Current max speed for each player
-boost_end_time = [0, 0]  # Time when boost effect ends
-car_colors = [(1, 0, 0), (0, 0, 1)]  # Colors: Red for P1, Blue for P2
-camera_mode = [1, 1]  # Camera mode: 0 = first-person, 1 = third-person
+position = [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]  
+orientation = [0.0, 0.0]  
+velocity = [0.0, 0.0] 
+top_speed = 0.3  
+acceleration = 0.005  
+base_handling = 0.06  
+handling = [base_handling, base_handling]  
+slippery_end_time = [0, 0]  
+BOOSTED_TOP_SPEED = top_speed * 2.0 
+max_speed = [top_speed, top_speed]  
+boost_end_time = [0, 0] 
+car_colors = [(1, 0, 0), (0, 0, 1)]  
+camera_mode = [1, 1]  
 
 # Input state for key presses
 keys = {
-    'p1_accel': False,  # Player 1 accelerate (W)
-    'p1_left': False,   # Player 1 steer left (A)
-    'p1_right': False,  # Player 1 steer right (D)
-    'p2_accel': False,  # Player 2 accelerate (Up arrow)
-    'p2_left': False,   # Player 2 steer left (Left arrow)
-    'p2_right': False,  # Player 2 steer right (Right arrow)
-    'enter': False,     # Enter key for advancing levels
+    'p1_accel': False,  
+    'p1_left': False,   
+    'p1_right': False,  
+    'p2_accel': False,  
+    'p2_left': False,   
+    'p2_right': False,  
+    'enter': False,     
 }
 
 
@@ -357,11 +357,14 @@ def check_collisions(player_id):
             
             if obj['type'] == 'obs':
                 health[player_id] -= 1.0
-
                 
-                if health[player_id] <= 0:
+                if health[player_id] == -1:
+                    velocity[player_id] = max_speed[player_id]
                     health[player_id] = 0
-                    max_speed[player_id] *= 0.1
+                
+                elif health[player_id] == 0:
+                    health[player_id] = 0
+                    max_speed[player_id] *= 0.3
                     
                 else:
                     max_speed[player_id] *= 0.9
@@ -492,10 +495,9 @@ def set_level_properties(level):
     elif level == 1:
         base_handling = 0.03
         particles = [{'pos': [random.uniform(-10, 10), 20, random.uniform(-10, 10)],
-                      'vel': [0, random.uniform(-1.0, -0.5), 0]} for _ in range(150)]
+                      'vel': [0, random.uniform(-1.0, -0.5), 0]} for i in range(150)]
         
     handling = [base_handling, base_handling]
-
 
 def next_level():
     global current_level, game_finished, position, velocity, max_speed, boost_end_time, level_completed, start_delay_time, health, slippery_end_time, finish_times
@@ -509,7 +511,7 @@ def next_level():
     slippery_end_time = [0, 0]
     health = [5.0, 5.0]
     level_completed = False
-    finish_times = [None, None]  # Reset finish times
+    finish_times = [None, None] 
     set_level_properties(current_level)
     generate_objects()
     generate_trees()
