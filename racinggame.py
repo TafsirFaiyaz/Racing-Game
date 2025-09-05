@@ -112,9 +112,8 @@ def generate_objects():
 
 def draw_track():
 
-    # Draw asphalt track
     glBegin(GL_QUADS)
-    glColor3f(0.2, 0.2, 0.2)  # Dark gray for asphalt
+    glColor3f(0.2, 0.2, 0.2) 
     
     for i in range(len(TRACK_POINTS) - 1):
         x1, y1, z1 = TRACK_POINTS[i]
@@ -129,25 +128,6 @@ def draw_track():
     
     glEnd()
 
-    # Draw white side lines
-    glColor3f(1.0, 1.0, 1.0)  # White color
-    glLineWidth(2.0)
-    glBegin(GL_LINES)
-    
-    for i in range(len(TRACK_POINTS) - 1):
-        z1 = TRACK_POINTS[i][2]
-        z2 = TRACK_POINTS[i + 1][2]
-        
-        # Left side line
-        glVertex3f(-4.8, 0.01, z1)
-        glVertex3f(-4.8, 0.01, z2)
-        
-        # Right side line
-        glVertex3f(4.8, 0.01, z1)
-        glVertex3f(4.8, 0.01, z2)
-    
-    glEnd()
-    glLineWidth(1.0)
 
 
 def draw_cube():
