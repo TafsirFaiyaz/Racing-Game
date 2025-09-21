@@ -22,6 +22,7 @@ trees = []
 game_finished = [False, False]  # Tracks if each player has finished the race
 current_level = 0  # Current level (0: Sunny, 1: Rainy, 2: Snowy)
 countdown_state = None  # Countdown state: None, 3, 2, 1, 'GO!', 'racing'
+finish_times = [None, None]
 
 countdown_start_time = 0  # Timestamp when countdown starts
 round_winners = []  # Stores winners of each round
@@ -685,6 +686,7 @@ def update_physics():
         position[player_id][2] += velocity[player_id]
         
         if position[player_id][2] >= 150.0:
+            finish_times[player_id] = time.time()
             game_finished[player_id] = True
     
     if all(game_finished) and not level_completed:
@@ -692,14 +694,13 @@ def update_physics():
         level_completed = True
         level_complete_time = glutGet(GLUT_ELAPSED_TIME)
         
-        if position[0][2] > position[1][2]:
-            round_winners.append(0)
-            
-        elif position[1][2] > position[0][2]:
-            round_winners.append(1)
+        if finish_times[0] < finish_times[1]:
+            round_winners.append(0)  
+        elif finish_times[1] < finish_times[0]:
+            round_winners.append(1)  
             
         else:
-            round_winners.append(-1)
+            round_winners.append(-1) # Tie
     
     if level_completed and keys['enter'] and current_level < 2:
         next_level()
@@ -758,7 +759,7 @@ def next_level():
     """
     Advance to the next level, resetting game state and generating new objects.
     """
-    global current_level, game_finished, position, velocity, max_speed, boost_end_time, level_completed, countdown_state, countdown_start_time, health, slippery_end_time
+    global current_level, game_finished, position, velocity, max_speed, boost_end_time, level_completed, countdown_state, countdown_start_time, health, slippery_end_time, finish_times
     
     current_level += 1
     game_finished = [False, False]
@@ -771,6 +772,7 @@ def next_level():
     slippery_end_time = [0, 0]
     health = [5.0, 5.0]
     level_completed = False
+    finish_times = [None, None] 
     
     set_level_properties(current_level)
     generate_objects()
